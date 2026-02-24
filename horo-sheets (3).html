@@ -456,6 +456,8 @@ async function loadFromSheets() {
   populateCityFilter(); updateKPIs(); renderChart(); renderTable(prospects);
   autoUpdateStatuses();
   checkUrgentNotifications();
+  startAutoRefresh();
+  startAutoRefresh();
 }
 
 async function syncFromSheets() {
@@ -848,6 +850,45 @@ function resetApp() {
 }
 
 // ============================================================
+// AUTO REFRESH toutes les 2 minutes
+// ============================================================
+function startAutoRefresh() {
+  setInterval(async () => {
+    try {
+      const range = `${SHEET_NAME_ENCODED}!A1:M300`;
+      const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}`, {
+        headers: { 'Authorization': 'Bearer ' + accessToken }
+      });
+      const data = await res.json();
+      if (data.error) return;
+      parseSheetData(data.values || []);
+      populateCityFilter(); updateKPIs(); renderChart(); applyFilters();
+      setSyncStatus('ok', 'Synchronisé');
+    } catch(e) { /* silencieux */ }
+  }, 2 * 60 * 1000); // toutes les 2 minutes
+}
+
+// ============================================================
+// ============================================================
+// AUTO REFRESH (toutes les 2 minutes)
+// ============================================================
+function startAutoRefresh() {
+  setInterval(async () => {
+    try {
+      const range = `${SHEET_NAME_ENCODED}!A1:M300`;
+      const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}`, {
+        headers: { 'Authorization': 'Bearer ' + accessToken }
+      });
+      const data = await res.json();
+      if (data.error) return;
+      parseSheetData(data.values || []);
+      populateCityFilter(); updateKPIs(); renderChart(); applyFilters();
+    } catch(e) {
+      // Silencieux — pas de toast pour ne pas déranger
+    }
+  }, 2 * 60 * 1000); // 2 minutes
+}
+
 // TOAST
 // ============================================================
 function toast(msg,type='') {
