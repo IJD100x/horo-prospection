@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Horo AI — Prospection</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root {
+    --bg: #08080f;
+    --surface: #10101c;
+    --card: #15152a;
+    --border: #1e1e38;
+    --accent: #6c63ff;
+    --accent2: #a78bfa;
+    --accent-glow: rgba(108,99,255,0.15);
+    --text: #e8e6f0;
+    --muted: #6b6890;
+    --red: #ff4d6d;
+    --orange: #ff9f43;
+    --green: #0be881;
+    --font-head: 'Syne', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-mono); min-height: 100vh; overflow-x: hidden; }
+  body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E"); pointer-events: none; z-index: 0; }
+
+  /* ===================== LOGIN SCREEN ===================== */
+  #login-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    position: relative;
+    z-index: 1;
+  }
+
+  .login-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 3rem 3.5rem;
+    max-width: 420px;
+    width: 90%;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .login-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+  }
+
+  .login-logo {
+    font-family: var(--font-head);
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    margin-bottom: 0.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .login-logo span { color: var(--accent2); }
+
+  .login-dot {
+    width: 10px; height: 10px;
+    background: var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 0 12px var(--accent);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
+
+  .login-sub {
+    color: var(--muted);
+    font-size: 0.8rem;
+    margin-bottom: 2.5rem;
+    line-height: 1.7;
+  }
+
+  .btn-google {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    width: 100%;
+    background: white;
+    color: #1f2937;
+    border: none;
+    padding: 13px 24px;
+    border-radius: 10px;
+    font-family: var(--font-head);
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+  }
+
+  .btn-google:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(0,0,0,0.5); }
+  .btn-google svg { width: 20px; height: 20px; flex-shrink: 0; }
+
+  .login-note {
+    margin-top: 1.25rem;
+    font-size: 0.68rem;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  .login-error {
+    display: none;
+    margin-top: 1rem;
+    background: rgba(255,77,109,0.1);
+    border: 1px solid rgba(255,77,109,0.3);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    font-size: 0.75rem;
+    color: var(--red);
+    line-height: 1.6;
+  }
+
+  .login-error.show { display: block; }
+
+  /* ===================== HEADER ===================== */
+  header { position: sticky; top: 0; z-index: 100; background: rgba(8,8,15,0.92); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .logo { font-family: var(--font-head); font-size: 1.1rem; font-weight: 800; letter-spacing: -0.02em; display: flex; align-items: center; gap: 0.5rem; }
+  .logo span { color: var(--accent2); }
+  .logo-dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 10px var(--accent); animation: pulse 2s infinite; }
+  .header-right { display: flex; align-items: center; gap: 0.75rem; }
+  #urgency-badge { display: none; background: var(--red); color: white; font-family: var(--font-head); font-weight: 700; font-size: 0.75rem; padding: 4px 12px; border-radius: 20px; animation: flash 1.5s infinite; }
+  @keyframes flash { 0%,100%{opacity:1} 50%{opacity:0.7} }
+
+  .user-chip { display: flex; align-items: center; gap: 0.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 5px 12px; font-size: 0.72rem; color: var(--muted); }
+  .user-chip-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .btn-logout { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 0.7rem; margin-left: 4px; transition: color 0.2s; }
+  .btn-logout:hover { color: var(--red); }
+
+  .gmail-status { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; transition: all 0.2s; }
+  .gmail-status:hover { border-color: var(--accent); }
+  .gmail-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+  .gmail-dot.connected { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .gmail-dot.scanning { background: var(--orange); animation: pulse 1s infinite; }
+
+  /* ===================== MAIN ===================== */
+  main { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 2rem; }
+
+  #upload-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; gap: 2rem; text-align: center; }
+  .upload-title { font-family: var(--font-head); font-size: 2.5rem; font-weight: 800; letter-spacing: -0.04em; line-height: 1.1; }
+  .upload-title em { color: var(--accent2); font-style: normal; }
+  .upload-zone { border: 2px dashed var(--border); border-radius: 16px; padding: 3rem 4rem; cursor: pointer; transition: all 0.3s; background: var(--card); position: relative; overflow: hidden; }
+  .upload-zone::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at center, var(--accent-glow) 0%, transparent 70%); opacity: 0; transition: opacity 0.3s; }
+  .upload-zone:hover::before { opacity: 1; }
+  .upload-zone:hover { border-color: var(--accent); }
+  .upload-icon { font-size: 3rem; margin-bottom: 1rem; display: block; }
+  .upload-label { font-family: var(--font-head); font-weight: 700; font-size: 1rem; }
+  .upload-hint { color: var(--muted); font-size: 0.75rem; margin-top: 0.5rem; }
+  #file-input { display: none; }
+
+  .btn-primary { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-family: var(--font-head); font-weight: 700; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
+  .btn-primary:hover { background: var(--accent2); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(108,99,255,0.4); }
+  .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); padding: 8px 16px; border-radius: 8px; font-family: var(--font-mono); font-size: 0.78rem; cursor: pointer; transition: all 0.2s; }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent2); }
+  .btn-email { background: rgba(108,99,255,0.12); color: var(--accent2); border: 1px solid rgba(108,99,255,0.3); padding: 5px 10px; border-radius: 6px; font-size: 0.72rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; font-family: var(--font-mono); }
+  .btn-email:hover { background: rgba(108,99,255,0.25); border-color: var(--accent); }
+
+  #dashboard { display: none; }
+  .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
+  .page-title { font-family: var(--font-head); font-size: 1.4rem; font-weight: 800; letter-spacing: -0.03em; }
+  .page-title span { color: var(--accent2); }
+  .top-actions { display: flex; gap: 0.75rem; align-items: center; }
+
+  .gmail-panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem; display: none; }
+  .gmail-panel.show { display: block; }
+  .gmail-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+  .gmail-panel-title { font-family: var(--font-head); font-weight: 700; font-size: 0.85rem; }
+  .gmail-scan-info { font-size: 0.72rem; color: var(--muted); }
+  .scan-results { margin-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+  .scan-item { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.75rem; display: flex; align-items: center; gap: 0.75rem; }
+  .scan-item.reply { border-color: rgba(11,232,129,0.3); background: rgba(11,232,129,0.05); }
+  .scan-item-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+  .scan-item-text { flex: 1; }
+  .scan-item-name { font-weight: 500; }
+  .scan-item-detail { color: var(--muted); margin-top: 2px; }
+  .btn-apply { background: rgba(11,232,129,0.1); color: var(--green); border: 1px solid rgba(11,232,129,0.3); padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; cursor: pointer; font-family: var(--font-mono); transition: all 0.2s; }
+  .btn-apply:hover { background: rgba(11,232,129,0.2); }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+  .kpi-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; position: relative; overflow: hidden; transition: border-color 0.2s; }
+  .kpi-card:hover { border-color: var(--accent); }
+  .kpi-card::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--accent), var(--accent2)); opacity: 0; transition: opacity 0.2s; }
+  .kpi-card:hover::after { opacity: 1; }
+  .kpi-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; }
+  .kpi-value { font-family: var(--font-head); font-size: 2rem; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+  .kpi-value.accent { color: var(--accent2); }
+  .kpi-value.red { color: var(--red); }
+  .kpi-value.green { color: var(--green); }
+  .kpi-value.orange { color: var(--orange); }
+
+  .mid-section { display: grid; grid-template-columns: 280px 1fr; gap: 1rem; margin-bottom: 2rem; }
+  .chart-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+  .card-title { font-family: var(--font-head); font-size: 0.8rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1rem; }
+  .filters-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+  .filters-row { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+  .search-input { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: var(--font-mono); font-size: 0.8rem; padding: 8px 14px; flex: 1; min-width: 200px; transition: border-color 0.2s; outline: none; }
+  .search-input:focus { border-color: var(--accent); }
+  .search-input::placeholder { color: var(--muted); }
+  select.filter-select { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: var(--font-mono); font-size: 0.78rem; padding: 8px 12px; cursor: pointer; outline: none; transition: border-color 0.2s; appearance: none; padding-right: 28px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b6890' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; }
+  select.filter-select:focus { border-color: var(--accent); }
+  .filter-btn { background: rgba(255,77,109,0.1); color: var(--red); border: 1px solid rgba(255,77,109,0.3); padding: 8px 14px; border-radius: 8px; font-family: var(--font-mono); font-size: 0.78rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+  .filter-btn:hover, .filter-btn.active { background: rgba(255,77,109,0.2); border-color: var(--red); }
+
+  .table-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .table-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .table-count { font-size: 0.75rem; color: var(--muted); }
+  .table-wrapper { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+  thead th { background: var(--surface); padding: 10px 12px; text-align: left; font-family: var(--font-head); font-size: 0.68rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap; border-bottom: 1px solid var(--border); }
+  tbody tr { border-bottom: 1px solid rgba(30,30,56,0.6); transition: background 0.15s; cursor: pointer; }
+  tbody tr:hover { background: rgba(108,99,255,0.05); }
+  tbody tr:last-child { border-bottom: none; }
+  td { padding: 10px 12px; vertical-align: middle; white-space: nowrap; }
+  .td-name { font-family: var(--font-head); font-weight: 600; font-size: 0.82rem; }
+  .td-sub { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+
+  .status-select { background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-family: var(--font-mono); font-size: 0.72rem; padding: 4px 8px; cursor: pointer; outline: none; transition: all 0.2s; max-width: 170px; appearance: none; padding-right: 20px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' fill='none'%3E%3Cpath d='M1 1l3 3 3-3' stroke='%236b6890' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; }
+  .status-select:focus { border-color: var(--accent); }
+
+  .relance-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 4px; font-size: 0.68rem; font-weight: 500; white-space: nowrap; }
+  .relance-badge.late { background: rgba(255,77,109,0.15); color: var(--red); border: 1px solid rgba(255,77,109,0.3); }
+  .relance-badge.today { background: rgba(255,159,67,0.15); color: var(--orange); border: 1px solid rgba(255,159,67,0.3); }
+  .relance-badge.ok { background: rgba(11,232,129,0.1); color: var(--green); border: 1px solid rgba(11,232,129,0.2); }
+  .relance-badge.none { color: var(--muted); font-size: 0.65rem; }
+  .replied-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 4px; font-size: 0.68rem; background: rgba(11,232,129,0.1); color: var(--green); border: 1px solid rgba(11,232,129,0.2); }
+
+  .date-input { background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-family: var(--font-mono); font-size: 0.72rem; padding: 4px 8px; cursor: pointer; outline: none; transition: border-color 0.2s; width: 120px; }
+  .date-input:focus { border-color: var(--accent); }
+  input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5); cursor: pointer; }
+  .notes-input { background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-family: var(--font-mono); font-size: 0.72rem; padding: 4px 8px; outline: none; transition: border-color 0.2s; width: 150px; resize: none; }
+  .notes-input:focus { border-color: var(--accent); }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; position: relative; }
+  .modal-title { font-family: var(--font-head); font-size: 1.1rem; font-weight: 800; margin-bottom: 0.25rem; }
+  .modal-sub { color: var(--muted); font-size: 0.75rem; margin-bottom: 1.5rem; }
+  .modal-close { position: absolute; top: 1.25rem; right: 1.25rem; background: var(--surface); border: 1px solid var(--border); color: var(--muted); width: 28px; height: 28px; border-radius: 6px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+  .modal-close:hover { color: var(--text); border-color: var(--accent); }
+  .history-list { display: flex; flex-direction: column; gap: 0.75rem; }
+  .history-item { display: flex; gap: 0.75rem; align-items: flex-start; font-size: 0.78rem; }
+  .history-dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; flex-shrink: 0; margin-top: 4px; box-shadow: 0 0 6px var(--accent); }
+  .history-time { color: var(--muted); font-size: 0.68rem; white-space: nowrap; }
+  .history-text { color: var(--text); line-height: 1.5; }
+  .empty-history { color: var(--muted); font-size: 0.78rem; text-align: center; padding: 2rem 0; }
+
+  #toast-container { position: fixed; bottom: 2rem; right: 2rem; z-index: 2000; display: flex; flex-direction: column; gap: 0.5rem; }
+  .toast { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.78rem; max-width: 280px; animation: slideIn 0.3s ease; border-left: 3px solid var(--accent); }
+  .toast.success { border-left-color: var(--green); }
+  .toast.warning { border-left-color: var(--orange); }
+  @keyframes slideIn { from{transform:translateX(100px);opacity:0} to{transform:translateX(0);opacity:1} }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+  .empty-state { text-align: center; padding: 3rem; color: var(--muted); font-size: 0.82rem; }
+  .no-email { color: var(--muted); font-size: 0.7rem; font-style: italic; }
+
+  @media (max-width: 900px) { .mid-section { grid-template-columns: 1fr; } .kpi-grid { grid-template-columns: repeat(2,1fr); } }
+  @media (max-width: 600px) { main { padding: 1rem; } .kpi-grid { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+
+<!-- ===================== LOGIN SCREEN ===================== -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-dot"></div>
+      Horo<span>AI</span>
+    </div>
+    <div class="login-sub">Suivi de prospection — Cabinets Dentaires<br>Accès réservé à l'équipe Horo AI</div>
+    <button class="btn-google" onclick="loginWithGoogle()">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+      </svg>
+      Se connecter avec Google
+    </button>
+    <div class="login-error" id="login-error">
+      ❌ Accès refusé. Seuls les comptes <strong>@horoai.fr</strong> sont autorisés.
+    </div>
+    <p class="login-note" style="font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;letter-spacing:-0.02em;color:var(--accent2);margin-top:1.5rem">1% Better<span style="display:block;font-family:'DM Mono',monospace;font-size:0.65rem;font-weight:400;color:var(--muted);letter-spacing:0.08em;margin-top:4px;text-transform:uppercase">Every. Single. Day.</span></p>
+  </div>
+</div>
+
+<!-- ===================== APP ===================== -->
+<div id="app" style="display:none">
+
+<header>
+  <div class="logo"><div class="logo-dot"></div>Horo<span>AI</span> — Prospection</div>
+  <div class="header-right">
+    <span id="urgency-badge">🔥 <span id="urgency-count">0</span> relances urgentes</span>
+    <div class="gmail-status" id="gmail-status-btn" onclick="toggleGmailPanel()">
+      <div class="gmail-dot" id="gmail-dot"></div>
+      <span id="gmail-status-text">Gmail</span>
+    </div>
+    <div class="user-chip">
+      <div class="user-chip-dot"></div>
+      <span id="user-email-display"></span>
+      <button class="btn-logout" onclick="logout()" title="Déconnexion">✕</button>
+    </div>
+    <button class="btn-ghost" id="btn-export" style="display:none" onclick="exportExcel()">↓ Export</button>
+    <button class="btn-ghost" id="btn-reset" style="display:none" onclick="resetApp()">↺ Reset</button>
+  </div>
+</header>
+
+<main>
+  <div id="upload-screen">
+    <div>
+      <div class="upload-title">Suivi de<br><em>prospection</em></div>
+      <p style="color:var(--muted);font-size:0.85rem;margin-top:0.75rem">Importe ton fichier Excel pour démarrer.</p>
+    </div>
+    <div class="upload-zone" onclick="document.getElementById('file-input').click()">
+      <span class="upload-icon">📊</span>
+      <div class="upload-label">Glisse ou clique pour importer</div>
+      <div class="upload-hint">Prospection_Cabinets_Dentaires_HoroAI.xlsx</div>
+    </div>
+    <input type="file" id="file-input" accept=".xlsx,.xls" onchange="handleFile(event)">
+    <button class="btn-primary" onclick="loadDemo()">Charger les données de démo</button>
+  </div>
+
+  <div id="dashboard">
+    <div class="top-bar">
+      <div class="page-title">Cabinets <span>Dentaires</span></div>
+      <div class="top-actions"><button class="btn-ghost" onclick="document.getElementById('file-input').click()">↑ Importer</button></div>
+    </div>
+
+    <div class="gmail-panel" id="gmail-panel">
+      <div class="gmail-panel-header">
+        <div class="gmail-panel-title">📬 Détection des réponses Gmail</div>
+        <div class="gmail-scan-info" id="last-scan-info">Jamais scanné</div>
+      </div>
+      <div id="gmail-connect-btn-area">
+        <button class="btn-primary" onclick="connectGmail()">Connecter Gmail</button>
+        <p style="color:var(--muted);font-size:0.72rem;margin-top:0.5rem">Connecte ta boîte @horoai.fr pour détecter les réponses</p>
+      </div>
+      <div id="gmail-connected-area" style="display:none">
+        <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+          <div style="font-size:0.78rem">✅ <span id="gmail-user-email" style="color:var(--accent2)"></span></div>
+          <button class="btn-primary" onclick="scanGmail()" id="btn-scan">🔍 Scanner les réponses</button>
+          <button class="btn-ghost" onclick="disconnectGmail()">Déconnecter</button>
+        </div>
+      </div>
+      <div class="scan-results" id="scan-results"></div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-label">Total prospects</div><div class="kpi-value accent" id="kpi-total">0</div></div>
+      <div class="kpi-card"><div class="kpi-label">Contactés</div><div class="kpi-value" id="kpi-contacted">0</div></div>
+      <div class="kpi-card"><div class="kpi-label">Relances urgentes</div><div class="kpi-value red" id="kpi-urgent">0</div></div>
+      <div class="kpi-card"><div class="kpi-label">En discussion</div><div class="kpi-value orange" id="kpi-discussion">0</div></div>
+      <div class="kpi-card"><div class="kpi-label">RDV pris</div><div class="kpi-value green" id="kpi-rdv">0</div></div>
+      <div class="kpi-card"><div class="kpi-label">Taux de réponse</div><div class="kpi-value accent" id="kpi-rate">0%</div></div>
+    </div>
+
+    <div class="mid-section">
+      <div class="chart-card"><div class="card-title">Répartition</div><canvas id="statusChart" height="220"></canvas></div>
+      <div class="filters-card">
+        <div class="card-title">Filtres & Recherche</div>
+        <div class="filters-row">
+          <input type="text" class="search-input" id="search-input" placeholder="🔍 Nom, ville, email..." oninput="applyFilters()">
+          <select class="filter-select" id="filter-status" onchange="applyFilters()">
+            <option value="">Tous les statuts</option>
+            <option value="À contacter">🔵 À contacter</option>
+            <option value="Email J0 envoyé">📤 Email J0 envoyé</option>
+            <option value="Relance J3 à faire">🔄 Relance J3</option>
+            <option value="Relance J7 à faire">🔄 Relance J7</option>
+            <option value="En discussion">💬 En discussion</option>
+            <option value="Rendez-vous pris">✅ RDV pris</option>
+            <option value="Pas intéressé">❌ Pas intéressé</option>
+            <option value="Sans réponse">🚫 Sans réponse</option>
+          </select>
+          <select class="filter-select" id="filter-city" onchange="applyFilters()">
+            <option value="">Toutes les villes</option>
+          </select>
+          <button class="filter-btn" id="btn-urgent-filter" onclick="toggleUrgentFilter()">🔥 Relances du jour</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header">
+        <div class="card-title" style="margin:0">Prospects</div>
+        <div class="table-count" id="table-count">0 prospects</div>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Cabinet / Praticien</th><th>Ville</th><th>Contact</th><th>Google</th><th>Statut</th><th>Date contact</th><th>Prochaine action</th><th>Gmail</th><th>Notes</th><th>Actions</th></tr></thead>
+          <tbody id="prospects-tbody"></tbody>
+        </table>
+        <div id="empty-state" class="empty-state" style="display:none">Aucun prospect trouvé.</div>
+      </div>
+    </div>
+  </div>
+</main>
+
+</div><!-- end #app -->
+
+<div class="modal-overlay" id="history-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title" id="modal-prospect-name"></div>
+    <div class="modal-sub" id="modal-prospect-sub"></div>
+    <div class="history-list" id="history-list"></div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+const GOOGLE_CLIENT_ID = '545051927583-0mog40ni8g3r8ectughk072p0j2dlvud.apps.googleusercontent.com';
+const ALLOWED_DOMAIN = 'horoai.fr';
+const GMAIL_SCOPES = 'https://www.googleapis.com/auth/gmail.readonly';
+
+let prospects = [], history = {}, chart = null;
+let urgentFilterActive = false;
+let gmailToken = null, gmailUserEmail = null;
+let currentUser = null;
+
+const STATUSES = ['🔵 À contacter','📤 Email J0 envoyé','🔄 Relance J3 à faire','🔄 Relance J7 à faire','💬 En discussion','✅ Rendez-vous pris','❌ Pas intéressé','🚫 Sans réponse'];
+const STATUS_VALUES = {'🔵 À contacter':'À contacter','📤 Email J0 envoyé':'Email J0 envoyé','🔄 Relance J3 à faire':'Relance J3 à faire','🔄 Relance J7 à faire':'Relance J7 à faire','💬 En discussion':'En discussion','✅ Rendez-vous pris':'Rendez-vous pris','❌ Pas intéressé':'Pas intéressé','🚫 Sans réponse':'Sans réponse'};
+const VALUE_TO_EMOJI = {};
+Object.entries(STATUS_VALUES).forEach(([k,v]) => VALUE_TO_EMOJI[v]=k);
+
+// ============================================================
+// AUTH
+// ============================================================
+window.onload = () => {
+  // Check if already logged in
+  const savedUser = localStorage.getItem('horo_user');
+  if (savedUser) {
+    currentUser = JSON.parse(savedUser);
+    showApp();
+  }
+};
+
+function loginWithGoogle() {
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: 'https://www.googleapis.com/auth/userinfo.email',
+    callback: async (response) => {
+      if (response.error) { showLoginError(); return; }
+      try {
+        const res = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+          headers: { 'Authorization': 'Bearer ' + response.access_token }
+        });
+        const user = await res.json();
+        const domain = user.email.split('@')[1];
+        if (domain !== ALLOWED_DOMAIN) {
+          showLoginError();
+          return;
+        }
+        currentUser = { email: user.email, name: user.name };
+        localStorage.setItem('horo_user', JSON.stringify(currentUser));
+        showApp();
+      } catch(e) {
+        showLoginError();
+      }
+    }
+  });
+  client.requestAccessToken();
+}
+
+function showLoginError() {
+  document.getElementById('login-error').classList.add('show');
+  setTimeout(() => document.getElementById('login-error').classList.remove('show'), 4000);
+}
+
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('user-email-display').textContent = currentUser.email;
+  requestNotificationPermission();
+  const saved = localStorage.getItem('horo_prospects');
+  const savedHistory = localStorage.getItem('horo_history');
+  const savedGmail = localStorage.getItem('horo_gmail_token');
+  if (saved) {
+    prospects = JSON.parse(saved);
+    history = savedHistory ? JSON.parse(savedHistory) : {};
+    showDashboard();
+  }
+  if (savedGmail) {
+    const data = JSON.parse(savedGmail);
+    gmailToken = data.token; gmailUserEmail = data.email;
+    updateGmailUI(true);
+  }
+}
+
+function logout() {
+  if (!confirm('Se déconnecter ?')) return;
+  localStorage.removeItem('horo_user');
+  currentUser = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  toast('Déconnecté');
+}
+
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
+function requestNotificationPermission() {
+  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+}
+function sendNotification(title, body) {
+  if ('Notification' in window && Notification.permission === 'granted') new Notification(title, { body });
+}
+
+// ============================================================
+// FILE HANDLING
+// ============================================================
+function handleFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const wb = XLSX.read(e.target.result, { type: 'binary' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    parseExcelData(data);
+  };
+  reader.readAsBinaryString(file);
+}
+
+function parseExcelData(data) {
+  let headerIdx = data.findIndex(row => row.some(c => String(c).includes('Nom du Cabinet') || String(c).includes('Nom du Praticien')));
+  if (headerIdx === -1) headerIdx = 2;
+  const rows = data.slice(headerIdx + 1).filter(row => row.some(c => c !== ''));
+  prospects = rows.map((row, i) => ({
+    id: i, cabinet: row[0]||'', praticien: row[1]||'', ville: row[2]||'',
+    email: row[3]||'', telephone: row[4]||'', instagram: row[5]||'',
+    avisGoogle: row[8]!==''?row[8]:'', noteGoogle: row[9]!==''?row[9]:'',
+    statut: row[10]||'', dateContact: row[11]?formatDateFromExcel(row[11]):'',
+    notes: row[12]||'', gmailReplied: false
+  })).filter(p => p.cabinet||p.praticien||p.email);
+  saveData(); showDashboard();
+  toast('✅ ' + prospects.length + ' prospects chargés', 'success');
+}
+
+function formatDateFromExcel(val) {
+  if (!val) return '';
+  if (typeof val === 'number') { const d = new Date((val-25569)*86400*1000); return d.toISOString().split('T')[0]; }
+  if (typeof val === 'string' && val.match(/\d{4}-\d{2}-\d{2}/)) return val;
+  return String(val);
+}
+
+function loadDemo() {
+  prospects = [
+    {id:0,cabinet:'',praticien:'Dr Novet Thibaut',ville:'Grenoble',email:'secretariat.scmdentistes38@outlook.fr',telephone:'04 76 50 40 90',avisGoogle:42,noteGoogle:4.1,statut:'',dateContact:'',notes:'',gmailReplied:false},
+    {id:1,cabinet:'',praticien:'Roger Dick',ville:'Gif-sur-Yvette',email:'secretariat.drdick@free.fr',telephone:'01 60 12 27 58',avisGoogle:'',noteGoogle:'',statut:'',dateContact:'',notes:'',gmailReplied:false},
+    {id:2,cabinet:'Orthodontiste Montmartre',praticien:'Jean-Marc BELLAICHE',ville:'Paris 18',email:'orthomontmartre@orange.fr',telephone:'01 53 28 53 28',avisGoogle:'',noteGoogle:'',statut:'',dateContact:'',notes:'',gmailReplied:false},
+    {id:3,cabinet:'Cabinet Dentaire',praticien:'Jawish Edouard',ville:'Paris 14',email:'dr.edouardjawish@gmail.com',telephone:'01 40 44 67 81',avisGoogle:'',noteGoogle:'',statut:'',dateContact:'',notes:'',gmailReplied:false},
+    {id:4,cabinet:'Centre Dentaire du Château',praticien:'Tony Bassil',ville:'Paris 10',email:'contact@centre-dentaire-du-chateau.com',telephone:'01 48 00 01 01',avisGoogle:'',noteGoogle:'',statut:'',dateContact:'',notes:'',gmailReplied:false},
+    {id:5,cabinet:'',praticien:'Boutboul Patrick',ville:'Saint-Égrève',email:'cabinet.boutboul@laposte.net',telephone:'04 76 75 27 15',avisGoogle:66,noteGoogle:4.5,statut:'',dateContact:'',notes:'',gmailReplied:false},
+    {id:6,cabinet:'',praticien:'Thibault Lacroix',ville:'Grenoble',email:'',telephone:'04 38 02 00 47',avisGoogle:'',noteGoogle:'',statut:'',dateContact:'',notes:'',gmailReplied:false},
+    {id:7,cabinet:'DR THAI & ASSOCIÉS',praticien:'DR THAI & ASSOCIÉS',ville:'Gif-sur-Yvette',email:'',telephone:'01 60 12 45 55',avisGoogle:'',noteGoogle:'',statut:'',dateContact:'',notes:'',gmailReplied:false},
+    {id:8,cabinet:'Cabinet Dentaire',praticien:'Denis CATTAN',ville:'Paris 14',email:'',telephone:'01 43 20 27 24',avisGoogle:'',noteGoogle:'',statut:'',dateContact:'',notes:'',gmailReplied:false},
+    {id:9,cabinet:'Chirurgien Dentiste',praticien:'Richard LEVY',ville:'Paris 13',email:'',telephone:'01 45 70 77 56',avisGoogle:'',noteGoogle:'',statut:'',dateContact:'',notes:'',gmailReplied:false},
+  ];
+  saveData(); showDashboard();
+  toast('✅ Données de démo chargées', 'success');
+}
+
+// ============================================================
+// GMAIL
+// ============================================================
+function toggleGmailPanel() {
+  document.getElementById('gmail-panel').classList.toggle('show');
+}
+
+function connectGmail() {
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: GMAIL_SCOPES,
+    callback: async (response) => {
+      if (response.error) { toast('❌ Erreur Gmail', 'warning'); return; }
+      gmailToken = response.access_token;
+      try {
+        const res = await fetch('https://www.googleapis.com/gmail/v1/users/me/profile', { headers: { 'Authorization': 'Bearer ' + gmailToken } });
+        const data = await res.json();
+        gmailUserEmail = data.emailAddress;
+        localStorage.setItem('horo_gmail_token', JSON.stringify({ token: gmailToken, email: gmailUserEmail }));
+        updateGmailUI(true);
+        toast('✅ Gmail connecté : ' + gmailUserEmail, 'success');
+      } catch(e) { toast('❌ Erreur profil Gmail', 'warning'); }
+    }
+  });
+  client.requestAccessToken();
+}
+
+function disconnectGmail() {
+  gmailToken = null; gmailUserEmail = null;
+  localStorage.removeItem('horo_gmail_token');
+  updateGmailUI(false);
+  document.getElementById('scan-results').innerHTML = '';
+  toast('Gmail déconnecté');
+}
+
+function updateGmailUI(connected) {
+  const dot = document.getElementById('gmail-dot');
+  const text = document.getElementById('gmail-status-text');
+  if (connected) {
+    dot.className = 'gmail-dot connected';
+    text.textContent = gmailUserEmail || 'Connecté';
+    document.getElementById('gmail-connect-btn-area').style.display = 'none';
+    document.getElementById('gmail-connected-area').style.display = 'block';
+    document.getElementById('gmail-user-email').textContent = gmailUserEmail;
+  } else {
+    dot.className = 'gmail-dot';
+    text.textContent = 'Gmail';
+    document.getElementById('gmail-connect-btn-area').style.display = 'block';
+    document.getElementById('gmail-connected-area').style.display = 'none';
+  }
+}
+
+async function scanGmail() {
+  if (!gmailToken) { toast('Connecte Gmail d\'abord', 'warning'); return; }
+  document.getElementById('gmail-dot').className = 'gmail-dot scanning';
+  const btn = document.getElementById('btn-scan');
+  btn.textContent = '⏳ Scan...'; btn.disabled = true;
+  const results = [];
+  const prospectEmails = prospects.filter(p => p.email).map(p => ({ id: p.id, email: p.email.toLowerCase() }));
+  try {
+    const res = await fetch(`https://www.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent('in:inbox newer_than:30d')}&maxResults=100`, { headers: { 'Authorization': 'Bearer ' + gmailToken } });
+    const data = await res.json();
+    if (!data.messages) { toast('Aucun email trouvé'); resetScanBtn(); return; }
+    const details = await Promise.all(data.messages.slice(0,50).map(async msg => {
+      const r = await fetch(`https://www.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`, { headers: { 'Authorization': 'Bearer ' + gmailToken } });
+      return r.json();
+    }));
+    const senderEmails = new Set();
+    details.forEach(msg => {
+      const headers = msg.payload?.headers || [];
+      const from = headers.find(h => h.name==='From')?.value || '';
+      const subject = headers.find(h => h.name==='Subject')?.value || '';
+      const date = headers.find(h => h.name==='Date')?.value || '';
+      const match = from.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/);
+      if (match) senderEmails.add({ email: match[0].toLowerCase(), subject, date });
+    });
+    senderEmails.forEach(sender => {
+      const match = prospectEmails.find(p => p.email === sender.email);
+      if (match) { const p = prospects.find(x => x.id === match.id); if (p) results.push({ prospect: p, subject: sender.subject, date: sender.date }); }
+    });
+    displayScanResults(results);
+    document.getElementById('last-scan-info').textContent = 'Scanné à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'});
+    results.length === 0 ? toast('✅ Aucune réponse détectée') : toast(`📬 ${results.length} réponse(s) détectée(s) !`, 'success');
+    if (results.length > 0) sendNotification('Horo AI', `${results.length} prospect(s) ont répondu`);
+  } catch(e) {
+    if (String(e).includes('401')) { disconnectGmail(); toast('Session expirée — reconnecte Gmail', 'warning'); }
+    else toast('❌ Erreur scan : ' + e.message, 'warning');
+  }
+  resetScanBtn();
+}
+
+function resetScanBtn() {
+  document.getElementById('gmail-dot').className = gmailToken ? 'gmail-dot connected' : 'gmail-dot';
+  const btn = document.getElementById('btn-scan');
+  btn.textContent = '🔍 Scanner les réponses'; btn.disabled = false;
+}
+
+function displayScanResults(results) {
+  const container = document.getElementById('scan-results');
+  if (!results.length) { container.innerHTML = '<div style="color:var(--muted);font-size:0.75rem;padding:0.5rem 0">Aucune réponse de tes prospects dans les 30 derniers jours.</div>'; return; }
+  container.innerHTML = results.map((r,i) => `<div class="scan-item reply"><div class="scan-item-dot"></div><div class="scan-item-text"><div class="scan-item-name">${r.prospect.praticien||r.prospect.cabinet}</div><div class="scan-item-detail">Objet : ${r.subject||'—'} · ${r.date?new Date(r.date).toLocaleDateString('fr-FR'):''}</div></div><button class="btn-apply" onclick="applyReply(${r.prospect.id},${i})">→ En discussion</button></div>`).join('');
+  window._scanResults = results;
+}
+
+function applyReply(prospectId, idx) {
+  const p = prospects.find(x => x.id === prospectId);
+  if (!p) return;
+  const old = p.statut; p.statut = 'En discussion'; p.gmailReplied = true;
+  addHistory(prospectId, `📬 Réponse Gmail — Statut : "${old||'vide'}" → "En discussion"`);
+  saveData(); updateKPIs(); renderChart(); applyFilters();
+  toast(`✅ ${p.praticien} → En discussion`, 'success');
+  const items = document.querySelectorAll('.scan-item.reply');
+  if (items[idx]) { items[idx].style.opacity = '0.4'; items[idx].querySelector('.btn-apply').textContent = '✓'; items[idx].querySelector('.btn-apply').disabled = true; }
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+function showDashboard() {
+  document.getElementById('upload-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  document.getElementById('btn-export').style.display = 'inline-flex';
+  document.getElementById('btn-reset').style.display = 'inline-flex';
+  populateCityFilter(); updateKPIs(); renderChart(); renderTable(prospects); checkUrgentNotifications();
+}
+
+function updateKPIs() {
+  const total = prospects.length;
+  const contacted = prospects.filter(p => p.statut && p.statut !== 'À contacter').length;
+  const urgent = prospects.filter(p => ['late','today'].includes(getRelanceStatus(p))).length;
+  const discussion = prospects.filter(p => p.statut === 'En discussion').length;
+  const rdv = prospects.filter(p => p.statut === 'Rendez-vous pris').length;
+  const responded = prospects.filter(p => ['En discussion','Rendez-vous pris','Pas intéressé'].includes(p.statut)).length;
+  const rate = contacted > 0 ? Math.round((responded/contacted)*100) : 0;
+  document.getElementById('kpi-total').textContent = total;
+  document.getElementById('kpi-contacted').textContent = contacted;
+  document.getElementById('kpi-urgent').textContent = urgent;
+  document.getElementById('kpi-discussion').textContent = discussion;
+  document.getElementById('kpi-rdv').textContent = rdv;
+  document.getElementById('kpi-rate').textContent = rate + '%';
+  const badge = document.getElementById('urgency-badge');
+  document.getElementById('urgency-count').textContent = urgent;
+  badge.style.display = urgent > 0 ? 'inline-flex' : 'none';
+  document.title = urgent > 0 ? `(${urgent}) Horo AI — Prospection` : 'Horo AI — Prospection';
+}
+
+function renderChart() {
+  const counts = {};
+  STATUSES.forEach(s => counts[s] = 0);
+  prospects.forEach(p => { const e = VALUE_TO_EMOJI[p.statut]||'🔵 À contacter'; counts[e] = (counts[e]||0)+1; });
+  const labels = Object.keys(counts).filter(k => counts[k] > 0);
+  const values = labels.map(k => counts[k]);
+  const colors = ['#4f46e5','#6c63ff','#a78bfa','#f59e0b','#10b981','#059669','#ef4444','#6b7280'];
+  if (chart) chart.destroy();
+  chart = new Chart(document.getElementById('statusChart').getContext('2d'), {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data: values, backgroundColor: colors.slice(0,labels.length), borderWidth: 0, hoverOffset: 4 }] },
+    options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: '#6b6890', font: { family: 'DM Mono', size: 10 }, padding: 8, boxWidth: 10 } } }, cutout: '65%' }
+  });
+}
+
+function populateCityFilter() {
+  const cities = [...new Set(prospects.map(p => p.ville).filter(Boolean))].sort();
+  const sel = document.getElementById('filter-city');
+  sel.innerHTML = '<option value="">Toutes les villes</option>';
+  cities.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o); });
+}
+
+// ============================================================
+// TABLE
+// ============================================================
+function renderTable(data) {
+  const tbody = document.getElementById('prospects-tbody');
+  const empty = document.getElementById('empty-state');
+  document.getElementById('table-count').textContent = data.length + ' prospect' + (data.length!==1?'s':'');
+  if (!data.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  tbody.innerHTML = data.map(p => {
+    const relance = getRelanceStatus(p);
+    const badge = getRelanceBadge(p, relance);
+    const emailBtn = p.email ? `<button class="btn-email" onclick="openEmail(${p.id},event)">✉️ Écrire</button>` : `<span class="no-email">—</span>`;
+    const gmailBadge = p.gmailReplied ? `<span class="replied-badge">📬 Répondu</span>` : `<span style="color:var(--muted);font-size:0.68rem">—</span>`;
+    return `<tr onclick="openHistory(${p.id})">
+      <td><div class="td-name">${p.cabinet||p.praticien||'—'}</div>${p.cabinet&&p.praticien!==p.cabinet?`<div class="td-sub">${p.praticien}</div>`:''}</td>
+      <td><span style="color:var(--muted);font-size:0.75rem">${p.ville||'—'}</span></td>
+      <td><div style="font-size:0.72rem">${p.telephone||'—'}</div><div style="font-size:0.68rem;color:var(--muted)">${p.email?p.email.substring(0,22)+'…':'Pas d\'email'}</div></td>
+      <td style="font-size:0.72rem;color:var(--muted)">${p.noteGoogle?`⭐ ${p.noteGoogle} (${p.avisGoogle})`:'—'}</td>
+      <td onclick="event.stopPropagation()"><select class="status-select" onchange="updateStatus(${p.id},this.value)"><option value="">— Choisir —</option>${STATUSES.map(s=>`<option value="${STATUS_VALUES[s]}" ${STATUS_VALUES[s]===p.statut?'selected':''}>${s}</option>`).join('')}</select></td>
+      <td onclick="event.stopPropagation()"><input type="date" class="date-input" value="${p.dateContact||''}" onchange="updateDate(${p.id},this.value)"></td>
+      <td>${badge}</td>
+      <td>${gmailBadge}</td>
+      <td onclick="event.stopPropagation()"><textarea class="notes-input" rows="1" placeholder="Notes…" onchange="updateNotes(${p.id},this.value)">${p.notes||''}</textarea></td>
+      <td onclick="event.stopPropagation()">${emailBtn}</td>
+    </tr>`;
+  }).join('');
+}
+
+function getRelanceStatus(p) {
+  if (!p.dateContact||!p.statut) return 'none';
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diff = Math.floor((today - new Date(p.dateContact)) / 86400000);
+  if (p.statut==='Email J0 envoyé') { if(diff>3)return'late'; if(diff===3)return'today'; if(diff<3)return'ok'; }
+  if (p.statut==='Relance J3 à faire'||p.statut==='Relance J7 à faire') { const t=p.statut.includes('J3')?3:7; if(diff>t)return'late'; if(diff===t)return'today'; if(diff<t)return'ok'; }
+  return 'none';
+}
+
+function getRelanceBadge(p, relance) {
+  if (relance==='none') return '<span class="relance-badge none">—</span>';
+  const diff = Math.floor((new Date().setHours(0,0,0,0) - new Date(p.dateContact)) / 86400000);
+  const target = p.statut==='Email J0 envoyé'?3:(p.statut.includes('J3')?3:7);
+  const rem = target - diff;
+  if (relance==='late') return `<span class="relance-badge late">🔴 ${Math.abs(rem)}j retard</span>`;
+  if (relance==='today') return `<span class="relance-badge today">🟠 Aujourd'hui</span>`;
+  return `<span class="relance-badge ok">✓ J+${rem}</span>`;
+}
+
+// ============================================================
+// ACTIONS
+// ============================================================
+function updateStatus(id, val) {
+  const p = prospects.find(x=>x.id===id); if(!p)return;
+  const old = p.statut; p.statut = val;
+  addHistory(id, `Statut : "${old||'vide'}" → "${val}"`);
+  saveData(); updateKPIs(); renderChart(); applyFilters();
+  toast('Statut mis à jour','success');
+}
+function updateDate(id, val) {
+  const p = prospects.find(x=>x.id===id); if(!p)return;
+  p.dateContact = val; addHistory(id, `Date de contact : ${val}`);
+  saveData(); updateKPIs(); applyFilters();
+}
+function updateNotes(id, val) { const p=prospects.find(x=>x.id===id); if(p){p.notes=val;saveData();} }
+function openEmail(id, event) {
+  event.stopPropagation();
+  const p = prospects.find(x=>x.id===id); if(!p||!p.email)return;
+  if(!p.dateContact){p.dateContact=new Date().toISOString().split('T')[0];addHistory(id,`Date auto-remplie : ${p.dateContact}`);saveData();applyFilters();}
+  window.location.href = `mailto:${p.email}?subject=${encodeURIComponent('Horo AI — Réceptionniste IA Vocale | '+(p.cabinet||p.praticien))}`;
+  toast(`✉️ Email ouvert pour ${p.praticien}`,'success');
+}
+
+// ============================================================
+// HISTORY
+// ============================================================
+function addHistory(id, text) {
+  if(!history[id])history[id]=[];
+  const now = new Date();
+  history[id].unshift({ time: now.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' '+now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}), text });
+  localStorage.setItem('horo_history', JSON.stringify(history));
+}
+function openHistory(id) {
+  const p = prospects.find(x=>x.id===id); if(!p)return;
+  document.getElementById('modal-prospect-name').textContent = p.cabinet||p.praticien||'Prospect';
+  document.getElementById('modal-prospect-sub').textContent = p.ville+(p.email?' · '+p.email:'');
+  const entries = history[id]||[];
+  document.getElementById('history-list').innerHTML = entries.length===0
+    ?'<div class="empty-history">Aucune activité enregistrée.</div>'
+    :entries.map(e=>`<div class="history-item"><div class="history-dot"></div><div><div class="history-time">${e.time}</div><div class="history-text">${e.text}</div></div></div>`).join('');
+  document.getElementById('history-modal').classList.add('open');
+}
+function closeModal(){document.getElementById('history-modal').classList.remove('open');}
+document.getElementById('history-modal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+// ============================================================
+// FILTERS
+// ============================================================
+function applyFilters() {
+  const search = document.getElementById('search-input').value.toLowerCase();
+  const status = document.getElementById('filter-status').value;
+  const city = document.getElementById('filter-city').value;
+  renderTable(prospects.filter(p => {
+    const ms = !search||[p.cabinet,p.praticien,p.email,p.ville].some(v=>v&&v.toLowerCase().includes(search));
+    const mst = !status||p.statut===status;
+    const mc = !city||p.ville===city;
+    const mu = !urgentFilterActive||['late','today'].includes(getRelanceStatus(p));
+    return ms&&mst&&mc&&mu;
+  }));
+}
+function toggleUrgentFilter(){urgentFilterActive=!urgentFilterActive;document.getElementById('btn-urgent-filter').classList.toggle('active',urgentFilterActive);applyFilters();}
+function checkUrgentNotifications(){
+  const n=prospects.filter(p=>['late','today'].includes(getRelanceStatus(p))).length;
+  if(n>0)setTimeout(()=>sendNotification('Horo AI — Relances',`🔥 ${n} relance(s) à traiter aujourd'hui`),1000);
+}
+
+// ============================================================
+// EXPORT / SAVE / RESET
+// ============================================================
+function exportExcel(){
+  const wb=XLSX.utils.book_new();
+  const rows=[['Nom du Cabinet','Nom du Praticien','Ville','Email','Téléphone','Instagram','','','Avis Google','Note Google (/5)','Statut','Date de contact','Notes / Remarques']];
+  prospects.forEach(p=>rows.push([p.cabinet,p.praticien,p.ville,p.email,p.telephone,p.instagram||'','','',p.avisGoogle,p.noteGoogle,p.statut,p.dateContact,p.notes]));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'Prospection Cabinets Dentaires');
+  XLSX.writeFile(wb,'Prospection_HoroAI_export.xlsx');
+  toast('↓ Export téléchargé','success');
+}
+function saveData(){localStorage.setItem('horo_prospects',JSON.stringify(prospects));}
+function resetApp(){
+  if(!confirm('Effacer toutes les données ?'))return;
+  localStorage.removeItem('horo_prospects');localStorage.removeItem('horo_history');
+  prospects=[];history={};
+  document.getElementById('dashboard').style.display='none';
+  document.getElementById('upload-screen').style.display='flex';
+  document.getElementById('btn-export').style.display='none';
+  document.getElementById('btn-reset').style.display='none';
+  document.getElementById('file-input').value='';
+}
+function toast(msg,type=''){
+  const el=document.createElement('div');
+  el.className=`toast ${type}`;el.textContent=msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(()=>el.remove(),3000);
+}
+</script>
+</body>
+</html>
