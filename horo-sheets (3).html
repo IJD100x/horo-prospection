@@ -483,7 +483,7 @@ function parseSheetData(rows) {
   const dataRows = rows.slice(HEADER_ROW).filter(row => row.some(c => c && c !== ''));
   prospects = dataRows.map((row, i) => ({
     id: i,
-    rowIndex: HEADER_ROW + 1 + i, // 1-indexed: header=ligne3, données=ligne4+ (3+1+0=4 pour le premier)
+    rowIndex: 4 + i, // données commencent ligne 4
     cabinet: row[COL.cabinet] || '',
     praticien: row[COL.praticien] || '',
     ville: row[COL.ville] || '',
