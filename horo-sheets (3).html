@@ -780,21 +780,21 @@ async function updateNotes(id, val) {
 
 async function openEmail(id, event) {
     if (event) event.stopPropagation();
-    const row = filteredData[id];
-    if (!row) return;
+    const p = prospects.find(x => x.id === id);
+    if (!p) return;
 
-    const email = row[COL.email];
-    const cabinet = row[COL.cabinet] || '';
-    const praticien = row[COL.praticien] || '';
-    const ville = row[COL.ville] || '';
-    const avis = row[COL.avisGoogle] || '';
-    const note = row[COL.noteGoogle] || '';
-    const statut = row[COL.statut] || '';
-    const siteWeb = row[COL.notes] || '';
+    const email = p.email || '';
+    const cabinet = p.cabinet || '';
+    const praticien = p.praticien || '';
+    const ville = p.ville || '';
+    const avis = p.avisGoogle || '';
+    const note = p.noteGoogle || '';
+    const statut = p.statut || '';
+    const siteWeb = p.notes || '';
 
     if (!email) { alert('Pas d\'email pour ce prospect'); return; }
 
-    // Ouvrir la fenetre IMMEDIATEMENT (avant await) pour eviter le blocage popup
+    // Ouvrir la fenetre IMMEDIATEMENT pour eviter le blocage popup
     const gmailWindow = window.open('about:blank', '_blank');
 
     const btn = event ? event.target.closest('button') || event.target : null;
@@ -824,7 +824,7 @@ async function openEmail(id, event) {
         '&body=' + body;
 
       if (gmailWindow) { gmailWindow.location.href = gmailUrl; }
-      else { window.open(gmailUrl, '_blank'); }
+      else { window.location.href = gmailUrl; }
       addHistory(id, 'email');
 
     } catch (err) {
@@ -843,7 +843,7 @@ async function openEmail(id, event) {
         '&su=' + subject +
         '&body=' + body;
       if (gmailWindow) { gmailWindow.location.href = gmailUrl; }
-      else { window.open(gmailUrl, '_blank'); }
+      else { window.location.href = gmailUrl; }
       addHistory(id, 'email');
     } finally {
       if (btn) { btn.innerHTML = originalText; btn.disabled = false; }
