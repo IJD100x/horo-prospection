@@ -776,16 +776,49 @@ async function updateNotes(id, val) {
   await updateSheetRow(p, ['notes']);
 }
 
-function openEmail(id, event) {
+function const WORKER_URL = 'https://horo-email-ai.ibrahima-dll.workers.dev';
+
+async function openEmail(id, event) {
   event.stopPropagation();
-  const p = prospects.find(x=>x.id===id); if(!p||!p.email)return;
-  if(!p.dateContact) {
+  const p = prospects.find(x => x.id === id);
+  if (!p || !p.email) { toast('Pas d\'email pour ce prospect', 'error'); return; }
+
+  const siteUrl = (p.notes || '').match(/https?:\/\/[^\s,;]+/)?.[0] || '';
+  const btn = event.target.closest('button') || event.target;
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '⏳ IA...';
+  btn.disabled = true;
+  btn.style.opacity = '0.6';
+
+  try {
+    const response = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        praticien: p.praticien || '', cabinet: p.cabinet || '',
+        ville: p.ville || '', siteUrl, statut: p.statut || '',
+        noteGoogle: p.noteGoogle || '', avisGoogle: p.avisGoogle || '',
+      }),
+    });
+    if (!response.ok) throw new Error('Erreur API');
+    const emailData = await response.json();
+    if (emailData.error) throw new Error(emailData.error);
+
+    window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(p.email)}&su=${encodeURIComponent(emailData.subject)}&body=${encodeURIComponent(emailData.body)}`, '_blank');
     p.dateContact = new Date().toISOString().split('T')[0];
-    addHistory(id,`Date auto-remplie : ${p.dateContact}`);
-    updateSheetRow(p, ['dateContact']); applyFilters();
+    addHistory(p, 'email_ai');
+    renderTable();
+    toast('Email IA généré ✓', 'success');
+  } catch (error) {
+    const nom = p.praticien || p.cabinet;
+    const fallbackBody = `Bonjour ${nom},\n\n[PERSONNALISE TON HOOK — regarde ${siteUrl}]\n\nJ'ai développé une assistante téléphonique qui prend le relais quand votre équipe est occupée ou que le cabinet est fermé. Elle répond 24h/24, identifie le besoin du patient et propose un créneau sur votre agenda.\n\nSi vous êtes curieux, appelez le 01 59 13 08 46 quand vous avez 2 minutes — voilà ce que vos patients entendraient.\n\nBonne journée,\nIbrahima, Horo AI — horoai.fr`;
+    window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(p.email)}&su=${encodeURIComponent('Vos appels manqués — ' + (p.cabinet || p.praticien))}&body=${encodeURIComponent(fallbackBody)}`, '_blank');
+    toast('IA indisponible — template de base', 'warning');
+  } finally {
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+    btn.style.opacity = '1';
   }
-  window.location.href = `mailto:${p.email}?subject=${encodeURIComponent('Horo AI — Réceptionniste IA Vocale | '+(p.cabinet||p.praticien))}`;
-  toast(`✉️ Email ouvert pour ${p.praticien}`,'success');
 }
 
 // ============================================================
