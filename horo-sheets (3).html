@@ -794,12 +794,6 @@ async function openEmail(id, event) {
 
     if (!email) { alert('Pas d\'email pour ce prospect'); return; }
 
-    // OUVRIR FENETRE AVANT AWAIT (user-gesture context preserved)
-    const win = window.open('', '_blank');
-    if (win) {
-      win.document.write('<html><head><title>Horo AI</title></head><body style="background:#1a1a2e;color:#e0e0e0;font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><div style="text-align:center"><h2>\u23F3 G\u00e9n\u00e9ration email IA...</h2><p>Personnalisation en cours pour ' + cabinet.replace(/'/g, "") + '</p></div></body></html>');
-    }
-
     const btn = event ? event.target.closest('button') || event.target : null;
     const originalText = btn ? btn.innerHTML : '';
     if (btn) { btn.innerHTML = '\u23F3 IA...'; btn.disabled = true; }
@@ -826,9 +820,17 @@ async function openEmail(id, event) {
         '&su=' + subject +
         '&body=' + body;
 
-      if (win && !win.closed) { win.location.href = gmailUrl; }
-      else { window.open(gmailUrl, '_blank'); }
       addHistory(id, 'email');
+
+      // Creer un lien cliquable invisible et le cliquer
+      var a = document.createElement('a');
+      a.href = gmailUrl;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
 
     } catch (err) {
       console.error('Erreur email IA:', err);
@@ -837,7 +839,7 @@ async function openEmail(id, event) {
         'Bonjour ' + (praticien || 'Docteur') + ',\\n\\n' +
         'Je me permets de vous contacter concernant votre cabinet ' + cabinet +
         (ville ? ' \u00e0 ' + ville : '') + '.\\n\\n' +
-        'Horo AI accompagne les cabinets dentaires dans leur croissance digitale avec des solutions sur mesure.\\n\\n' +
+        'Horo AI accompagne les cabinets dentaires dans leur croissance digitale.\\n\\n' +
         'Seriez-vous disponible pour un \u00e9change de 10 minutes cette semaine ?\\n\\n' +
         'Bien cordialement,\\nIbrahima\\nHoro AI'
       );
@@ -845,9 +847,15 @@ async function openEmail(id, event) {
         '&to=' + encodeURIComponent(email) +
         '&su=' + subject +
         '&body=' + body;
-      if (win && !win.closed) { win.location.href = gmailUrl; }
-      else { window.open(gmailUrl, '_blank'); }
       addHistory(id, 'email');
+      var a = document.createElement('a');
+      a.href = gmailUrl;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     } finally {
       if (btn) { btn.innerHTML = originalText; btn.disabled = false; }
     }
