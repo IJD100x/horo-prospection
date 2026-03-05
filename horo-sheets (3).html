@@ -792,12 +792,16 @@ async function openEmail(id, event) {
     const statut = p.statut || '';
     const siteWeb = p.notes || '';
 
-    if (!email) { alert('Pas d\'email pour ce prospect'); return; }
+    if (!email) { alert("Pas d'email pour ce prospect"); return; }
 
     const btn = event ? event.target.closest('button') || event.target : null;
-    const originalText = btn ? btn.innerHTML : '';
-    if (btn) { btn.innerHTML = '\u23F3 IA...'; btn.disabled = true; }
+    if (!btn) return;
+    const originalHTML = btn.outerHTML;
+    const parentCell = btn.parentElement;
+    btn.innerHTML = '\u23F3 IA...';
+    btn.disabled = true;
 
+    let gmailUrl;
     try {
       const response = await fetch(WORKER_URL, {
         method: 'POST',
@@ -815,49 +819,50 @@ async function openEmail(id, event) {
       const subject = encodeURIComponent(data.subject || 'Collaboration - Horo AI x ' + cabinet);
       const body = encodeURIComponent(data.body || '');
 
-      const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1' +
-        '&to=' + encodeURIComponent(email) +
-        '&su=' + subject +
-        '&body=' + body;
-
-      addHistory(id, 'email');
-
-      // Creer un lien cliquable invisible et le cliquer
-      var a = document.createElement('a');
-      a.href = gmailUrl;
-      a.target = '_blank';
-      a.rel = 'noopener';
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1'
+        + '&to=' + encodeURIComponent(email)
+        + '&su=' + subject
+        + '&body=' + body;
 
     } catch (err) {
       console.error('Erreur email IA:', err);
       const subject = encodeURIComponent('Collaboration - Horo AI x ' + cabinet);
       const body = encodeURIComponent(
-        'Bonjour ' + (praticien || 'Docteur') + ',\\n\\n' +
-        'Je me permets de vous contacter concernant votre cabinet ' + cabinet +
-        (ville ? ' \u00e0 ' + ville : '') + '.\\n\\n' +
-        'Horo AI accompagne les cabinets dentaires dans leur croissance digitale.\\n\\n' +
-        'Seriez-vous disponible pour un \u00e9change de 10 minutes cette semaine ?\\n\\n' +
-        'Bien cordialement,\\nIbrahima\\nHoro AI'
+        'Bonjour ' + (praticien || 'Docteur') + ',\n\n'
+        + 'Je me permets de vous contacter concernant votre cabinet ' + cabinet
+        + (ville ? ' \u00e0 ' + ville : '') + '.\n\n'
+        + 'Horo AI accompagne les cabinets dentaires dans leur croissance digitale avec des solutions sur mesure.\n\n'
+        + 'Seriez-vous disponible pour un \u00e9change de 10 minutes cette semaine ?\n\n'
+        + 'Bien cordialement,\nIbrahima\nHoro AI'
       );
-      const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1' +
-        '&to=' + encodeURIComponent(email) +
-        '&su=' + subject +
-        '&body=' + body;
-      addHistory(id, 'email');
-      var a = document.createElement('a');
-      a.href = gmailUrl;
-      a.target = '_blank';
-      a.rel = 'noopener';
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } finally {
-      if (btn) { btn.innerHTML = originalText; btn.disabled = false; }
+      gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1'
+        + '&to=' + encodeURIComponent(email)
+        + '&su=' + subject
+        + '&body=' + body;
+    }
+
+    addHistory(id, 'email');
+
+    // Remplacer le bouton par un vrai lien cliquable
+    const link = document.createElement('a');
+    link.href = gmailUrl;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.innerHTML = '\u2709\uFE0F Ouvrir Gmail';
+    link.style.cssText = 'display:inline-block;padding:6px 14px;background:#10b981;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;cursor:pointer;animation:pulse 1.5s infinite';
+    link.title = 'Cliquez pour ouvrir Gmail avec l\'email personnalis\u00e9';
+    link.onclick = function(e) {
+      e.stopPropagation();
+      // Apres clic, restaurer le bouton original
+      setTimeout(function() {
+        if (parentCell && link.parentElement === parentCell) {
+          parentCell.innerHTML = originalHTML;
+        }
+      }, 1000);
+    };
+
+    if (parentCell) {
+      btn.replaceWith(link);
     }
   }
 
